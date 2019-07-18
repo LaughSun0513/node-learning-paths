@@ -158,7 +158,7 @@ id | username |  password | realname |
 获取博客列表      | /api/blog/list        |   get     | author作者，keyword搜索关键字 |参数为空，则不进行查询过滤
 获取一篇博客的内容 | /api/blog/detail      |   get     | id  |                  
 新增一篇博客      | /api/blog/new         |   post    |     | post中有新增的信息
-更新一篇博客      | /api/blog/new         |   post    | id  | postData中有更新的内容
+更新一篇博客      | /api/blog/update      |   post    | id  | postData中有更新的内容
 删除一篇博客      | /api/blog/del         |   post    | id  | 
 登录             | /api/user/login       |   post    |     | postData中有用户名和密码
 
@@ -168,9 +168,202 @@ id | username |  password | realname |
 
 # 开发接口
 ## nodejs处理http请求
- - DNS解析 建立TCP连接 发送http请求
- - server接收到http请求，处理，并返回
- - 客户端接收到返回数据，处理数据（如渲染页面，执行js）
+ ### DNS解析 建立TCP连接 发送http请求
+    - 域名 -- > ip+port
+
+ ### server接收到http请求，处理，并返回
+ #### get 请求和querystring
+  - get请求，即客户端要向server端获取数据，如查询博客列表
+  - 通过querystring传递数据，如 a.html?a=100&b=200
+
+  ```js
+    const http = require('http');
+    const querystring = require('querystring');
+
+    const server = http.createServer((req,res)=>{
+        console.log(req.method)
+        const url = req.url;
+        console.log(url);
+
+        const queryStr = url.split('?')[1]; //根据问号拆分参数
+        req.query = querystring.parse(queryStr);
+        res.end(JSON.stringify(req.query));
+    });
+    server.listen(8000);
+  ```
+
+ #### post 请求和postdata（post发送的数据）
+    - 客户端向服务端传递数据，如新建博客
+    - 通过post data传递数据
+    - 浏览器无法直接模拟，需要手写js，或者使用postman
+    
+  ```js
+    const http = require('http');
+    const log = console.log;
+
+    const server = http.createServer((req,res)=>{
+        if(req.method ==="POST"){
+          // req 数据格式
+          log('req content-type',req.headers['content-type']);
+
+          // 接收数据
+          let postData = '';
+          req.on('data',chunk=>{
+            postData += chunk.toString();
+          });
+          req.on('end',()=>{
+            log('postData',postData);
+            res.end('hello post')
+          })
+        }
+    });
+    server.listen(8001);
+  ```
+   ##### postman模拟发送post请求
+   1.Chrome上安装postman插件
+   2.地址栏输入访问地址 http://localhost:8001，修改请求为POST
+   3.点击下方 “Body” ---> raw 右侧选择 JSON ---> 下方空白区 输入请求参数json
+ 
+ #### 路由
+  ```text
+    解析req.url 里的/username /password等
+  ```
+ #### 综合示例
+  ```js
+    const http = require('http');
+    const querystring = require('querystring');
+    const log = console.log;
+
+    const server = http.createServer((req,res)=>{
+        const method = req.method;
+        const url = req.url;
+        const query = querystring.parse(url.split('?')[1]);
+        const path = url.split('?')[0]
+
+        res.setHeader('Content-type','application/json');
+
+        const resData = {
+          method,
+          url,
+          query,
+          path
+        }
+        if(method==='GET'){
+          res.end(JSON.stringify(resData))
+        }
+        if(method==='POST'){
+          let postData = '';
+          req.on('data',chunk => {
+            postData += chunk
+          });
+          req.on('end',()=>{
+            log('postData',postData);
+            resData.postData = postData
+            res.end(JSON.stringify(resData));
+          })
+        }
+    });
+    server.listen(8002);
+  ```
+### 客户端接收到返回数据，处理数据（如渲染页面，执行js）
 
 ## 搭建开发环境
+  - 从0开始搭建，不使用任何框架
+  - 使用nodemon监测文件变化，自动重启node
+  - 使用cross-env 设置环境变量，兼容mac/linux/windows
+
 ## 开发接口，暂不考虑连接数据库和登录
+ - 初始化路由：根据之前技术方案的设计，做出路由
+ - 返回假数据：将路由和数据分离，以符合设计原则
+
+├── app.js <br>    -- 主要服务
+├── bin<br>
+│   └── www.js<br>  --- 创建服务
+├── controllers<br> --- 放假数据
+│   └── index.js<br>
+├── models<br>     --- 返回正确/错误 统一数据格式Model
+│   └── index.js<br>
+├── package-lock.json<br>
+├── package.json<br>
+└── routers<br>  -- 路由文件，解析请求
+    ├── blog.js<br>
+    └── user.js<br>
+
+```js
+# blog.js
+const handleBlogRouter = (req,res) =>{
+    const method = req.method;
+    const path = req.url.split('?')[0];
+  
+    //获取博客列表  /api/blog/list
+    if( method==="GET" && path === "/api/blog/list"){
+        return {
+          msg:'/api/blog/list'
+        }
+    }
+    //获取一篇博客的内容  /api/blog/detail
+    if( method==="GET" && path === "/api/blog/detail"){
+        return {
+          msg:'/api/blog/detail'
+        }
+    }
+    //新增一篇博客   /api/blog/new 
+    if( method==="POST" && path === "/api/blog/new"){
+        return {
+          msg:'/api/blog/new'
+        }
+    }
+    //更新一篇博客   /api/blog/update  
+    if( method==="POST" && path === "/api/blog/update"){
+      return {
+        msg:'/api/blog/update'
+      }
+    }
+    //删除一篇博客   /api/blog/del   
+    if( method==="POST" && path === "/api/blog/update"){
+      return {
+        msg:'/api/blog/update'
+      }
+    }
+}
+module.exports = handleBlogRouter;
+```
+```js
+# user.js
+const handleUserRouter = (req,res) =>{
+  const method = req.method;
+  const path = req.url.split('?')[0];
+
+  //获取博客列表  /api/user/login
+  if( method==="POST" && path === "/api/user/login"){
+      return {
+        "msg":"/api/user/login"
+      }
+  }
+  
+}
+module.exports = handleUserRouter;
+```
+```js
+# app.js
+const handleBlogRouter= require('./routers/blog');
+const handleUserRouter = require('./routers/user');
+
+const serverHandle = (req,res) => {
+    //设置返回的JSON
+    res.setHeader('Content-type','application/json');
+    const blogData = handleBlogRouter(req,res);
+    if(blogData){
+      res.end(JSON.stringify(blogData));
+    }
+
+    const userData = handleUserRouter(req,res);
+    if(userData){
+      res.end(JSON.stringify(userData));
+    }
+    
+}
+
+module.exports = serverHandle;
+```
+ 
