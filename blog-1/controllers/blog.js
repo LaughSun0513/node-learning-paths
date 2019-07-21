@@ -23,7 +23,25 @@ const getDetail = (id) => {
         author:"zhangsan"
   }
 }
+const newBlog = (blogData = {}) => {
+  return {
+    id:3
+  }
+}
+const updateBlog = (id,blogData = {}) => {
+    // id 要更新的博客id
+    // blogData 博客对象 包含title content对象
+    console.log('update blog',id,blogData);
+    return true;
+}
+const delBlog = (id) => {
+  //id 要删除的博客id
+   return true;
+}
 module.exports = {
   getList,
-  getDetail
+  getDetail,
+  newBlog,
+  updateBlog,
+  delBlog
 }
