@@ -231,7 +231,7 @@ id | username |  password | realname |
  #### 综合示例
   ```js
     const http = require('http');
-    const querystring = require('querystring');
+    const querystring = require('querystring');##
     const log = console.log;
 
     const server = http.createServer((req,res)=>{
@@ -607,3 +607,99 @@ module.exports = {
   loginCheck
 }
 ```
+
+# MySQL
+## mysql 介绍 安装 使用
+- web server 中最流行的关系型数据库
+- 轻量级，易学易用
+- 安装mysql
+- 安装可视化工具 [workbench](https://dev.mysql.com/downloads/workbench/)
+
+### 建库--->建表--->表操作
+
+1. 建库 --> 创建myblog数据库 --> 执行show databases查询
+2. 建表 <br>
+
+> 创建blogs博客表
+
+id | title |  content| createtime | author
+---|:-----:|:-------:|:----------:|:----:|
+1  | 标题1 | 博客1 | 创建时间xxx-xxx-xxx | xxx
+2  | 标题2 | 博客2 | 创建时间xxx-xxx-xxx2 | xxx2
+
+-------------------------blogs博客表结构设计<br>
+
+column   |   datatype |  pk主键 | nn不为空 | AI自动增加 | Deafult
+---|:--------:|:---------:|:--------:|:--------:|:--------:|
+id       | int(整数类型) |  Y(不重复) | Y | Y (自增)
+title    | varchar(50)(字符串) |     | Y | 
+content  | longtext(20) |           | Y | 
+createtime | bigint(20)(长整数) |           | Y | | 0 
+author   |  varchar(50) |           | Y |
+
+-------------------------
+>创建users表
+
+id | username |  password | realname | 
+---|:--------:|:---------:|:--------:|
+1  | zhangsan | 123       | 张三 
+2  | lisi     | 456 | 李四 
+
+------------------------users用户表结构设计<br>
+
+column | datatype |  pk主键 | nn不为空 | AI自动增加
+---|:--------:|:---------:|:--------:|:--------:|
+id  | int(整数类型) |  Y(不重复)   | Y | Y (自增)
+username  | varchar(20)(字符串) |    | Y | 
+password  | varchar(20) |    | Y | 
+realname  | varchar(10) |    | Y | 
+
+3.操作表
+```SQL
+# 使用myblog库
+use myblog; 
+
+# 显示所有表
+show tables; 
+# 注释
+-- show tables; 
+
+# 增
+insert into users (username,`password`,realname) values ('zhangsan','123','张三') # 向users表插入username,`password`关键词加反引号,realname
+
+# 查
+select * from users; # 查询users表的所有内容
+select id,username from users; # 查询users表的id,username
+
+## 条件查询 同时满足
+select * from users where username='zhangsan' and `password`='123' 
+## 条件查询 并集查询 满足其一的就显示
+select * from users where username='zhangsan' or `password`='123'
+
+## 模糊查询
+select * from users where username like '%zhang%'; 
+
+## 排序查询(正序)，模糊查询有1的结果按照id排序
+select * from users where username like '%1%' order by id ;
+
+## 排序查询(倒序)，模糊查询有1的结果按照id排序 
+select * from users where username like '%1%' order by id desc; 
+
+# 更新
+update users set relname='李四2' where username='lisi'
+## 如果触发MySQL安全机制，可以关闭,再执行更新语句
+SET SQL_SAFE_UPDATES=0;
+
+# 删除(一定带where条件)
+delete from users where username="lisi";
+
+## 通过字段来表示删除，而不是真实delete删除
+select * from users where state='1';
+-- select * from users where state<>'0';(另一种写法 <>0 表示不等于0)
+update users set state='0' where username='lisi' # 设置state=0表示删除(软删除)
+
+# 查看mysql版本号
+select version();
+```
+## nodejs链接mysql
+- API 连接 mysql
