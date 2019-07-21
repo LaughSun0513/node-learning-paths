@@ -366,4 +366,244 @@ const serverHandle = (req,res) => {
 
 module.exports = serverHandle;
 ```
- 
+-----------
+### 解析post请求的接口 和 了解 callback/promise/async&await
+```js
+# app.js
+const queryString = require('querystring');
+const handleBlogRouter= require('./routers/blog');
+const handleUserRouter = require('./routers/user');
+
+//解析post data，返回promise对象
+const getPostData = (req) => {
+    const promise = new Promise((resolve,reject) => {
+          if(req.method === "POST" && req.headers['content-type'] === 'application/json'){
+            let postData = "";
+            req.on('data',chunk => postData += chunk.toString());
+            req.on("end",()=>{
+              if(postData){
+                resolve(JSON.parse(postData));
+              }else{
+                resolve({});
+                return;
+              }
+            })
+          }else{
+            resolve({});
+            return;
+          }
+    });
+    return promise;
+}
+
+const serverHandle = (req,res) => {
+    //设置返回的JSON
+    res.setHeader('Content-type','application/json');
+    //获取path
+    const url = req.url;
+    req.path = url.split('?')[0];
+    req.query = queryString.parse(url.split('?')[1])
+
+    //解析post数据
+    getPostData(req).then(postData => {
+        req.body = postData;
+        //处理博客的路由
+        const blogData = handleBlogRouter(req,res);
+        if(blogData){
+          res.end(JSON.stringify(blogData));
+        }
+
+        //处理用户登录的路由
+        const userData = handleUserRouter(req,res);
+        if(userData){
+          res.end(JSON.stringify(userData));
+        }
+    })
+    
+    
+}
+
+module.exports = serverHandle;
+```
+```js
+# 建立返回的数据格式Model models/index.js
+class BaseModel {
+    constructor(data,message){
+      if(typeof data === "string"){
+          this.message = data;
+          data = null;
+          message = null
+      }
+      if(data){
+        this.data = data;
+      }
+      if(message){
+        this.message = message;
+      }
+    }
+}
+
+class SuccessModel extends BaseModel {
+    constructor(data,message){
+      super(data,message);
+      this.errno = 0;
+    }
+}
+class ErrorModel extends BaseModel {
+  constructor(data,message){
+    super(data,message);
+    this.errno = -1;
+  }
+}
+
+module.exports = {
+  SuccessModel,
+  ErrorModel
+}
+```
+```js
+# 解析 博客路由 routers/blog.js
+const {
+  getList,
+  getDetail,
+  newBlog,
+  updateBlog,
+  delBlog
+} = require('../controllers/blog')
+const { SuccessModel,ErrorModel }  = require('../models')
+const handleBlogRouter = (req,res) =>{
+    const method = req.method;
+    const path = req.path;
+    const query = req.query;
+    const id = query && query.id;
+   
+
+    //获取博客列表  /api/blog/list
+    if( method==="GET" && path === "/api/blog/list"){
+        const { author , keyword } = query;
+        if(author && keyword){
+          const resData = getList(author,keyword);
+          return new SuccessModel(resData);
+        }else {
+          return new ErrorModel('获取博客列表失败，请传正确的参数 author & keyword');
+        }
+        
+    }
+    //获取一篇博客的内容  /api/blog/detail
+    if( method==="GET" && path === "/api/blog/detail"){
+        if(id){
+          const resData = getDetail(id);
+          return new SuccessModel(resData);
+        }else{
+          return new ErrorModel('获取博客内容失败，请传正确的参数id');
+        }
+    }
+    //新增一篇博客   /api/blog/new 
+    if( method==="POST" && path === "/api/blog/new"){
+        const resData = newBlog(req.body);
+        return new SuccessModel(resData);
+    }
+    //更新一篇博客   /api/blog/update  
+    if( method==="POST" && path === "/api/blog/update"){
+      const resData = updateBlog(id,req.body);
+      if(resData){
+        return new SuccessModel('更新博客成功');
+      }else {
+        return new ErrorModel('更新博客失败')
+      }
+    }
+    //删除一篇博客   /api/blog/del   
+    if( method==="POST" && path === "/api/blog/del"){
+      if(id){
+        const resData = delBlog(id);
+        if(resData){
+          return new SuccessModel('删除博客成功');
+        }
+      }
+    }
+}
+module.exports = handleBlogRouter;
+```
+```js
+# 解析用户登录路由 routers/user.js
+const { loginCheck } = require('../controllers/user');
+const { SuccessModel,ErrorModel }  = require('../models')
+const handleUserRouter = (req,res) =>{
+  const method = req.method;
+  const path = req.path;
+
+  //获取博客列表  /api/user/login
+  if( method==="POST" && path === "/api/user/login"){
+     const { username,password } = req.body;
+     const result = loginCheck(username,password);
+     if(result){
+      return new SuccessModel('登陆成功!');
+     }
+     return new ErrorModel('登录失败!');
+  }
+  
+}
+module.exports = handleUserRouter;
+```
+```js
+# 处理数据 controllers/blog.js
+const getList = (author,keyword) => {
+    console.log(author,keyword)
+    return [
+      {
+        id:1,
+        title:'博文A',
+        content:"内容A",
+        author:"zhangsan"
+      },
+      {
+        id:2,
+        title:'博文B',
+        content:"内容B",
+        author:"lisi"
+      }
+    ]
+}
+const getDetail = (id) => {
+  return {
+        id:1,
+        title:'博文A',
+        content:"内容A",
+        author:"zhangsan"
+  }
+}
+const newBlog = (blogData = {}) => {
+  return {
+    id:3
+  }
+}
+const updateBlog = (id,blogData = {}) => {
+    // id 要更新的博客id
+    // blogData 博客对象 包含title content对象
+    console.log('update blog',id,blogData);
+    return true;
+}
+const delBlog = (id) => {
+  //id 要删除的博客id
+   return true;
+}
+module.exports = {
+  getList,
+  getDetail,
+  newBlog,
+  updateBlog,
+  delBlog
+}
+```
+```js
+# 处理数据 controllers/user.js
+const loginCheck = (username,password) => {
+  if(username === 'zhangsan' && password === '123'){
+    return true;
+  }
+  return false;
+}
+module.exports = {
+  loginCheck
+}
+```
