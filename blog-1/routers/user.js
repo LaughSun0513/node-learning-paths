@@ -7,11 +7,12 @@ const handleUserRouter = (req,res) =>{
   //获取博客列表  /api/user/login
   if( method==="POST" && path === "/api/user/login"){
      const { username,password } = req.body;
-     const result = loginCheck(username,password);
-     if(result){
-      return new SuccessModel('登陆成功!');
-     }
-     return new ErrorModel('登录失败!');
+     return loginCheck(username,password).then(loginRes => {
+      if(loginRes.username){
+        return new SuccessModel('登陆成功!');
+       }
+       return new ErrorModel('登录失败!');
+     });
   }
   
 }

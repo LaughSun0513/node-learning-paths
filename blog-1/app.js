@@ -36,15 +36,29 @@ const serverHandle = (req,res) => {
     getPostData(req).then(postData => {
         req.body = postData;
         //处理博客的路由
-        const blogData = handleBlogRouter(req,res);
-        if(blogData){
-          res.end(JSON.stringify(blogData));
+        // const blogData = handleBlogRouter(req,res);
+        // if(blogData){
+        //   res.end(JSON.stringify(blogData));
+        // }
+        const blogRes = handleBlogRouter(req,res);
+        if(blogRes){
+          blogRes.then(blogData=>{
+            res.end(JSON.stringify(blogData));
+          });
+          return;
         }
-
+        
         //处理用户登录的路由
-        const userData = handleUserRouter(req,res);
-        if(userData){
-          res.end(JSON.stringify(userData));
+        // const userData = handleUserRouter(req,res);
+        // if(userData){
+        //   res.end(JSON.stringify(userData));
+        // }
+        const userRes = handleUserRouter(req,res);
+        if(userRes){
+          userRes.then(userData=>{
+            res.end(JSON.stringify(userData));
+          });
+          return;
         }
     })
     
