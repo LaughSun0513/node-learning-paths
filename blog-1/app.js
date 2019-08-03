@@ -30,7 +30,22 @@ const serverHandle = (req,res) => {
     //获取path
     const url = req.url;
     req.path = url.split('?')[0];
+
+    //解析query
     req.query = queryString.parse(url.split('?')[1])
+
+    //解析cookie
+    req.cookie = {};
+    const cookieStr = req.headers.cookie || ''; // k1=v1;k2=v2;
+    cookieStr.split(';').forEach(item=>{
+        if(!item) return;
+        item = item.trim();
+        const arr = item.split('=');
+        const key = arr[0] || "";
+        const value = arr[1] || "";
+        req.cookie[key] = value;
+    })
+    console.log('req.cookie',req.cookie);
 
     //解析post数据
     getPostData(req).then(postData => {

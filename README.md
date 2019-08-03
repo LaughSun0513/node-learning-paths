@@ -1,5 +1,5 @@
 # Node-Blog
-Node + Express/Koa2 + PM2 +Redis 
+Node + Express/Koa2 + PM2 + MySQL/Redis 
 
 # Nodejs真正用途
 - Nodejs，一个js运行环境
@@ -1106,7 +1106,117 @@ const serverHandle = (req,res) => {
 
 module.exports = serverHandle;
 ```
-## 登录
+## 登录--- 核心:登录校验 & 登录信息存储
+
 ### cookie和session
+#### cookie
+1.什么是cookie
+  - 存储在浏览器的一段字符串（最大5k）
+  - 跨域不共享
+  - 格式如：k1=v1;k2=v2;k3=v3; 可存储结构化数据
+  - 每次发送http请求，会将请求域的cookie一起发送给server
+  - server可以修改cookie并返回给浏览器
+  - 浏览器中也可通过js修改cookie(限制)
+
+2.js操作cookie，浏览器中查看cookie
+  - 客户端查看cookie三种方式
+    - Chrome控制台---> Network--->请求中的Request Header
+    - Chrome控制台---> Application --> Storage -->Cookies
+    - Chrome控制台---> Console --->输入 'document.cookie'(js查看)
+  <br/>
+  - js修改cookie(有限制)
+    document.cookie='k1=100;'
+    document.cookie='k2=100;'
+    cookie会累加--> 结果: document.cookie --> "k1=100;k2=100;"
+
+3.server端操作cookie，实现登录验证
+  - 查看cookie -- req.headers.cookie
+  - 修改cookie -- res.setHeader('Set-Cookie',`key1=v1;key2=v2;path=/`)
+  - 模拟实现登录验证
+  原理：通过get请求输入账号和密码，第一次登陆完，server端在客户端种一个cookie，如果下次再登录，Request Header里会携带上次的cookie
+```js
+    //在serverHandle函数里 解析cookie
+    req.cookie = {}; //挂载在req上
+    const cookieStr = req.headers.cookie || ''; // k1=v1;k2=v2;
+    cookieStr.split(';').forEach(item=>{
+        let key = item.split('=')[0] || "";
+        let value = item.split('=')[1] || "";
+        req.cookie[key] = value;
+    })
+    console.log('req.cookie',req.cookie);
+```
+```js
+# 
+const { loginCheck } = require('../controllers/user');
+const { SuccessModel,ErrorModel }  = require('../models')
+const handleUserRouter = (req,res) =>{
+  const method = req.method;
+  const path = req.path;
+
+  //获取博客列表  /api/user/login
+  if( method==="GET" && path === "/api/user/login"){ //这里修改为GET来模拟
+    //  const { username,password } = req.body;
+     const { username,password } = req.query;
+     return loginCheck(username,password).then(loginRes => {
+      if(loginRes.username){
+        res.setHeader('Set-Cookie',`username=${loginRes.username};path=/;`)
+        return new SuccessModel('登陆成功!');
+       }
+       return new ErrorModel('登录失败!');
+     });
+  }
+}
+module.exports = handleUserRouter;
+```
+```
+# test URL: http://localhost:8000/api/user/login?username=zhangsan&password=123
+会在浏览器种一个cookie
+
+Response Header:
+Connection: keep-alive
+Content-Length: 37
+Content-type: application/json
+Date: Tue, 30 Jul 2019 14:11:56 GMT
+Set-Cookie: username=zhangsan;path=/; # 这个是服务端种上的
+
+# 再次请求
+Request Header:
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3
+Accept-Encoding: gzip, deflate, br
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+Cache-Control: max-age=0
+Connection: keep-alive
+Cookie: username=zhangsan  #这里会携带上次种上的的cookie
+Host: localhost:8000
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36
+```
+4.cookie安全性
+4.1 httpOnly
+场景：对于登录的lisi，如果通过前端修改document.cookie="zhangsan"，会导致zhangsan的数据泄漏，为了防止这种情况，服务端需要进行安全限制，防止前端修改cookie 
+
+```
+# 设置httpOnly
+ res.setHeader('Set-Cookie',`username=${loginRes.username};path=/; httpOnly`);
+```
+4.2 设置cookie过期时间
+场景:对于长时间登录的状态，需要定时让用户登录，防止他人获取登录后的用户信息
+
+```js
+//设置cookie过期时间 GMT格式
+const setCookieExpires = () => {
+    const date = new Date();
+    date.setTime(date.getTime() + (24*60*60*1000));
+    return date.toGMTString();
+}
+
+res.setHeader('Set-Cookie',`username=${loginRes.username};path=/; httpOnly; expires=${setCookieExpires()}`);
+```
+
+##### cookie总结
+- 知道cookie的定义和特点
+- 前后端如何查看和修改cookie
+- 如何使用cookie实现登录验证
+
 ### session写入redis
 ### 开发登录功能，和前端联调（ngnix反向代理）
