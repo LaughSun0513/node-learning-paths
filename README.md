@@ -1418,7 +1418,7 @@ const handleUserRouter = (req,res) =>{
        return new ErrorModel('===>登录失败!');
      });
   }
-  //测试：通过cookie来登录验证
+  //测试：通过session来登录验证
   if( method==="GET" && path === "/api/user/login-test"){
     console.log('login-test,req.session==>',req.session);
     console.log('login-test,req.cookie==>',req.cookie);
@@ -1435,5 +1435,361 @@ const handleUserRouter = (req,res) =>{
 }
 module.exports = handleUserRouter;
 ```
+#### session使用js变量来存储带来的问题 --- 解决方案：redis
+目前session 直接是js变量，放在nodejs进程内存中(Node进程有限)
+
+- 第一，进程内存有限，访问量过大，内存暴增怎么办？(用户访问如果增多)
+- 第二，正式线上运行是多进程的，进程之间内存无法共享(当前用户1的数据存在进程1，但是如果下次访问用户1,进到里进程2，进程2不存在用户1的数据，就会导致进程2重复创建数据)
+
+解决方案--redis
+- web server最常用的缓存数据库，数据存储在内存中
+- 相比于mysql，访问速度快(内存和硬盘数据库不是一个数量级)
+- 但成本更高，可存储的数据量更小(内存的硬伤)
+- 将web server和redis拆分成两个单独的服务(关键!!!)
+- 双方都是独立的，都是可扩展的(例如 都扩展成集群)
+- 包括mysql，也是一个单独的服务，也可扩展
+
+为什么session适用redis？
+- session访问频繁，对性能要求极高
+- session可不考虑断电丢失数据的问题
+- session数据量不会太大
+
+为什么网站数据不适合用redis？
+- 操作频率不是太高
+- 断电不能丢失，必须保留
+- 数据量太大，内存成本太高
+
+##### 安装redis
+[windows安装redis](https://www.runoob.com/redis/redis-install.html)
+<br>
+Mac安装 `brew install redis`
+
+```SQL
+# redis使用
+redis-server #启动服务
+redis-cli # 新建窗口
+
+set key1 value1 # 设置key:value
+get key1    # 获取key的值
+keys *      # 获取所有key
+del key1    # 删除当前key
+```
+##### Nodejs 启动Redis -- test05
+`npm install redis --save`
+
+```js
+const redis = require('redis');
+
+//创建客户端
+const redisClient = redis.createClient(6379,'127.0.0.1');
+redisClient.on('error',err=>{
+    console.log(err);
+});
+
+//test-设置值，取值
+redisClient.set('myname','zhangsan2',redis.print);
+redisClient.get('myname',(err,val)=>{
+    if(err){
+      console.error(err);
+      return;
+    }
+    console.log('val',val);
+    redisClient.quit();
+});
+
+```
+```
+node index.js # 通过node连接redis 读写操作
+
+Reply: OK
+val zhangsan2
+
+# redis客户端查看是否生成key
+redis-cli
+127.0.0.1:6379> keys *
+1) "myname"
+```
+
+#### 使用redis替换session变量
+```js
+##### db/conf.js #####
+let REDIS_CONF;
+
+if ( env === 'dev' ) {
+  REDIS_CONF = {
+    host:'127.0.0.1',
+    port:6379
+  }
+}
+
+if ( env === 'production' ) {
+  REDIS_CONF = {
+    host:'127.0.0.1',
+    port:6379
+  }
+}
+module.exports = {
+  REDIS_CONF
+}
+
+##### db/redis.js 封装get & set 方法 #####
+const redis = require('redis');
+const { REDIS_CONF } = require('./conf');
+const { port , host } = REDIS_CONF;
+
+//创建客户端
+const redisClient = redis.createClient(port,host);
+
+redisClient.on('error',err => {
+    console.error(err);
+});
+
+//封装 redis set方法
+function redisSet(key,val){
+    if(typeof val === 'object'){
+        val = JSON.stringify(val);
+    }
+    redisClient.set(key,val,redis.print);
+}
+//封装 redis get方法
+function redisGet(key){
+  const promise = new Promise((resolve,reject) =>{
+    redisClient.get(key,(err,val) =>{
+        if(err){
+          reject(err);
+          return;
+        }
+        if(val === null){
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(JSON.parse(val)); //try/catch 不是为了抓异常,而是兼容对象的值
+        }catch(e){
+          resolve(val);
+        }
+        
+    });
+  });
+  return promise;
+}
+module.exports = {
+  redisSet,
+  redisGet
+}
+
+##### app.js #######
+const { redisSet, redisGet } = require('./db/redis');
+//将session存储到redis中
+  let userId = req.cookie.userid;
+  let needSetCookie = false;
+  if(!userId){
+      needSetCookie = true;
+      userId = `${Date.now()}_${Math.random()}`;
+      redisSet(userId,{});
+  }
+  // 获取当前userid对应的username，relaname
+  req.sessionId = userId;
+  redisGet(req.sessionId).then(sessionData => {
+      if(sessionData == null){
+        redisSet(req.sessionId,{});
+        req.session = {};
+      } else {
+        req.session = sessionData;
+      }
+  });
+
+##### routers/user.js #####
+const { redisSet } = require('../db/redis');
+
+req.session.username = loginRes.username;
+req.session.realname = loginRes.realname;
+redisSet(req.sessionId,req.session);
+```
+#### 完成blog的登录验证
+```js
+# router/blog.js
+const {
+  getList,
+  getDetail,
+  newBlog,
+  updateBlog,
+  delBlog
+} = require('../controllers/blog');
+const { SuccessModel,ErrorModel }  = require('../models');
+
+// 新增：统一登录验证函数
+const loginCheck = (req) => {
+    if(!req.session.username){
+        return Promise.resolve(
+          new ErrorModel('尚未登录')
+        )
+    }
+}
+//新增：验证是否登录
+const loginCheckResFunc = (req) => {
+    const loginCheckRes = loginCheck(req);
+    if(loginCheckRes){
+      return loginCheckRes;
+    }
+}
+const handleBlogRouter = (req,res) =>{
+    const method = req.method;
+    const path = req.path;
+    const query = req.query;
+    const id = query && query.id;
+   
+
+    //获取博客列表  /api/blog/list
+    if( method==="GET" && path === "/api/blog/list"){
+        const { author , keyword } = query;
+        return getList(author,keyword).then(resData=>{
+          return new SuccessModel(resData);
+        })
+        
+    }
+    //获取一篇博客的内容  /api/blog/detail
+    if( method==="GET" && path === "/api/blog/detail"){
+        if(id){
+          return getDetail(id).then(resData=>{
+            return new SuccessModel(resData);
+          })
+        }
+    }
+    //新增一篇博客   /api/blog/new 
+    if( method==="POST" && path === "/api/blog/new"){
+        loginCheckResFunc(req); //新增
+        req.body.author = req.session.username; //新增，不再是假数据
+        return newBlog(req.body).then(resData=>{
+          return new SuccessModel(resData);
+        });
+    }
+    //更新一篇博客   /api/blog/update  
+    if( method==="POST" && path === "/api/blog/update"){
+      loginCheckResFunc(req); //新增
+       return updateBlog(id,req.body).then(resData=>{
+          if(resData){
+            return new SuccessModel('更新博客成功');
+          }else {
+            return new ErrorModel('更新博客失败')
+          }
+       });
+    }
+    //删除一篇博客   /api/blog/del   
+    if( method==="POST" && path === "/api/blog/del"){
+      loginCheckResFunc(req); //新增
+      req.body.author = req.session.username; //新增
+      return delBlog(id,req.body.author).then(resData=>{
+        if(resData){
+          return new SuccessModel('删除博客成功');
+        }else{
+          return new ErrorModel('删除博客失败');
+        }
+      });
+      
+    }
+}
+module.exports = handleBlogRouter;
+```
+```js
+# routers/user.js
+const { loginCheck } = require('../controllers/user');
+const { SuccessModel,ErrorModel }  = require('../models');
+const { redisSet } = require('../db/redis');
+
+const handleUserRouter = (req,res) =>{
+  const method = req.method;
+  const path = req.path;
+
+  //获取博客列表  /api/user/login
+  if( method==="POST" && path === "/api/user/login"){
+     const { username,password } = req.body;
+     return loginCheck(username,password).then(loginRes => {
+      if(loginRes.username){
+        req.session.username = loginRes.username;
+        req.session.realname = loginRes.realname;
+        redisSet(req.sessionId,req.session);
+        return new SuccessModel('登陆成功!');
+       }
+       return new ErrorModel('登录失败!');
+     });
+  }
+}
+module.exports = handleUserRouter;
+```
 
 ### 开发登录功能，和前端联调（ngnix反向代理）
+- 登录功能依赖cookie，必须用浏览器来联调
+- cookie跨域不共享，前端和server端必须同域
+- 需要用到nginx做代理，让前后端同域
+
+#### 准备前端页面
+- admin.html
+- edit.html
+- login.html
+- detail.html
+- index.html
+- new.html
+
+##### 创建静态页面服务-- http-server
+`npm install http-server -g`
+`http-server -p 8001` # 创建前端静态资源服务端口号为8001,可查看前端html文件
+
+#### 前后端端口不一致--使用nginx
+- 前端端口：8001
+- 后端端口：8000
+
+nginx介绍
+- 高性能的web服务器，开源免费
+- 一般用于做静态服务，负载均衡
+- 反向代理
+  - 正向代理:客户端控制的代理
+  - 反向代理：对于客户端是一个黑盒的server端代理
+
+nginx反向代理
+- 浏览器---> localhost/index.html ---> nginx ---> / ---> html 
+- 浏览器---> localhost/index.html ---> nginx ---> /api/... ---> nodejs
+
+nginx下载
+[Windows](http://nginx.org/en/download.html)<br>
+Mac `brew install nginx`
+
+nginx配置
+Windows:C:\nginx\conf\nginx.conf
+Mac:/usr/local/etc/nginx/nginx.conf
+
+nginx命令
+```js
+nginx -t        # 测试配置文件格式是否正确 
+nginx -s reload # 启动nginx 重启
+nginx -s stop   # 停止
+```
+
+```js
+# vim /usr/local/etc/nginx/nginx.conf
+
+worker_processes 2; # 启动几个内核
+
+location / {
+  proxy_pass http://localhost:8001; 
+}
+location /api/ {
+  proxy_pass http://localhost:8000;
+  proxy_set_header Host $host;
+}
+
+# nginx -t 测试是否配置代理成功
+
+nginx: the configuration file /usr/local/etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /usr/local/etc/nginx/nginx.conf test is successful
+```
+
+### 登录功能-总结
+- cookie是什么？ session是什么？如何实现登录？
+- redis扮演什么角色？有什么核心价值？
+- nginx的反向代理配置，联调过程中的作用？
+
+
+### 日志
+  - 系统没有日志，就等于人没有眼睛
+    - 每日流量 QPS多少(QPS:每秒访问量)

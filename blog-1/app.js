@@ -1,8 +1,9 @@
 const queryString = require('querystring');
 const handleBlogRouter= require('./routers/blog');
 const handleUserRouter = require('./routers/user');
+const { redisSet, redisGet } = require('./db/redis');
 
-const SESSION_DATA = {}; //存储session
+//const SESSION_DATA = {}; //存储session
 //设置cookie过期时间 GMT格式
 const setCookieExpires = () => {
   const date = new Date();
@@ -56,7 +57,7 @@ const serverHandle = (req,res) => {
     console.log('req.cookie',req.cookie);
 
     //根据cookie解析session
-    let userId = req.cookie.userid;
+    /*let userId = req.cookie.userid;
     let needSetCookie = false;
     if(userId){ //判断是否已经有userId,来决定是否是同一个用户 或是 在前端种一个自己能识别的userid
       if(!SESSION_DATA[userId]){ //表示有userid，但是没有找到对应的username等数据,清空存储当前userid用户的对象
@@ -66,7 +67,7 @@ const serverHandle = (req,res) => {
       needSetCookie = true;
       userId = `${Date.now()}_${Math.random()}`;
       SESSION_DATA[userId] = {};
-    }
+    }*/
     /** 
      * 存储当前用户的userId  数据结构是 
      * SESSION_DATA = {
@@ -75,11 +76,31 @@ const serverHandle = (req,res) => {
      *    '1565508588565_0.41190501274115565': { username: 'zhangsan', realname: '张三' } 
      * }
     */
-    req.session = SESSION_DATA[userId]; 
-    console.log('SESSION_DATA',SESSION_DATA);
+    // req.session = SESSION_DATA[userId]; 
+    // console.log('SESSION_DATA',SESSION_DATA);
+    
+    //将session存储到redis中
+    let userId = req.cookie.userid;
+    let needSetCookie = false;
+    if(!userId){
+        needSetCookie = true;
+        userId = `${Date.now()}_${Math.random()}`;
+        redisSet(userId,{});
+    }
+    // 获取当前userid对应的username，relaname
+    req.sessionId = userId;
+    redisGet(req.sessionId).then(sessionData => {
+        if(sessionData == null){
+          redisSet(req.sessionId,{});
+          req.session = {};
+        } else {
+          req.session = sessionData;
+        }
 
-    //解析post数据
-    getPostData(req).then(postData => {
+        //解析post数据 返回promise
+        return getPostData(req);
+    })
+    .then(postData => {
         req.body = postData;
         //处理博客的路由
         // const blogData = handleBlogRouter(req,res);
@@ -94,7 +115,7 @@ const serverHandle = (req,res) => {
             }
             res.end(JSON.stringify(blogData));
           });
-          return;
+          return; 
         }
         
         //处理用户登录的路由
