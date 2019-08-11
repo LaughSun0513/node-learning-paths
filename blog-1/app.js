@@ -2,6 +2,14 @@ const queryString = require('querystring');
 const handleBlogRouter= require('./routers/blog');
 const handleUserRouter = require('./routers/user');
 
+const SESSION_DATA = {}; //存储session
+//设置cookie过期时间 GMT格式
+const setCookieExpires = () => {
+  const date = new Date();
+  date.setTime(date.getTime() + (24*60*60*1000));
+  return date.toGMTString();
+}
+
 //解析post data，返回promise对象
 const getPostData = (req) => {
     const promise = new Promise((resolve,reject) => {
@@ -39,13 +47,36 @@ const serverHandle = (req,res) => {
     const cookieStr = req.headers.cookie || ''; // k1=v1;k2=v2;
     cookieStr.split(';').forEach(item=>{
         if(!item) return;
-        item = item.trim();
+
         const arr = item.split('=');
-        const key = arr[0] || "";
-        const value = arr[1] || "";
+        const key = arr[0].trim() || "";
+        const value = arr[1].trim() || "";
         req.cookie[key] = value;
     })
     console.log('req.cookie',req.cookie);
+
+    //根据cookie解析session
+    let userId = req.cookie.userid;
+    let needSetCookie = false;
+    if(userId){ //判断是否已经有userId,来决定是否是同一个用户 或是 在前端种一个自己能识别的userid
+      if(!SESSION_DATA[userId]){ //表示有userid，但是没有找到对应的username等数据,清空存储当前userid用户的对象
+        SESSION_DATA[userId] = {};
+      } 
+    } else { //在前端种一个自己能识别的userid
+      needSetCookie = true;
+      userId = `${Date.now()}_${Math.random()}`;
+      SESSION_DATA[userId] = {};
+    }
+    /** 
+     * 存储当前用户的userId  数据结构是 
+     * SESSION_DATA = {
+     *    1:{username:xxx,relaname:xxx},
+     *    2:{username:xxx,relaname:xxx},
+     *    '1565508588565_0.41190501274115565': { username: 'zhangsan', realname: '张三' } 
+     * }
+    */
+    req.session = SESSION_DATA[userId]; 
+    console.log('SESSION_DATA',SESSION_DATA);
 
     //解析post数据
     getPostData(req).then(postData => {
@@ -58,6 +89,9 @@ const serverHandle = (req,res) => {
         const blogRes = handleBlogRouter(req,res);
         if(blogRes){
           blogRes.then(blogData=>{
+            if(needSetCookie){
+              res.setHeader('Set-Cookie',`userid=${userId};path=/; httpOnly; expires=${setCookieExpires()}`);
+            }
             res.end(JSON.stringify(blogData));
           });
           return;
@@ -71,6 +105,9 @@ const serverHandle = (req,res) => {
         const userRes = handleUserRouter(req,res);
         if(userRes){
           userRes.then(userData=>{
+            if(needSetCookie){
+              res.setHeader('Set-Cookie',`userid=${userId};path=/; httpOnly; expires=${setCookieExpires()}`);
+            }
             res.end(JSON.stringify(userData));
           });
           return;

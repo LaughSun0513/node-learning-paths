@@ -18,20 +18,27 @@ const handleUserRouter = (req,res) =>{
      const { username,password } = req.query;
      return loginCheck(username,password).then(loginRes => {
       if(loginRes.username){
-        res.setHeader('Set-Cookie',`username=${loginRes.username};path=/; httpOnly; expires=${setCookieExpires()}`);
+        // res.setHeader('Set-Cookie',`username=${loginRes.username};path=/; httpOnly; expires=${setCookieExpires()}`);
+        req.session.username = loginRes.username;
+        req.session.realname = loginRes.realname;
+        console.log('req.session is', req.session);
         return new SuccessModel('登陆成功!');
        }
-       return new ErrorModel('登录失败!');
+       return new ErrorModel('===>登录失败!');
      });
   }
   //测试：通过cookie来登录验证
   if( method==="GET" && path === "/api/user/login-test"){
-    if(req.cookie.username){
-      return Promise.resolve(new SuccessModel({
-        username:req.cookie.username
-      }));
+    console.log('login-test,req.session==>',req.session);
+    console.log('login-test,req.cookie==>',req.cookie);
+    if(req.session.username){
+        return Promise.resolve(
+          new SuccessModel({
+            session:req.session
+          })
+        );
      }
-     return Promise.resolve(new ErrorModel('登录失败!'));
+     return Promise.resolve(new ErrorModel('登录失败===>!'));
   }
   
 }
