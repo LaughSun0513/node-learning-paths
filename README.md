@@ -276,16 +276,16 @@ id | username |  password | realname |
  - 初始化路由：根据之前技术方案的设计，做出路由
  - 返回假数据：将路由和数据分离，以符合设计原则
 
-├── app.js <br>    -- 主要服务
+├── app.js  -- 主要服务 <br>   
 ├── bin<br>
-│   └── www.js<br>  --- 创建服务
-├── controllers<br> --- 放假数据
+│   └── www.js --- 创建服务<br>  
+├── controllers --- 放假数据<br> 
 │   └── index.js<br>
-├── models<br>     --- 返回正确/错误 统一数据格式Model
+├── models  --- 返回正确/错误 统一数据格式Model<br>     
 │   └── index.js<br>
 ├── package-lock.json<br>
 ├── package.json<br>
-└── routers<br>  -- 路由文件，解析请求
+└── routers -- 路由文件，解析请求<br>  
     ├── blog.js<br>
     └── user.js<br>
 
@@ -1125,9 +1125,9 @@ module.exports = serverHandle;
     - Chrome控制台---> Console --->输入 'document.cookie'(js查看)
   <br/>
   - js修改cookie(有限制)
-    document.cookie='k1=100;'
-    document.cookie='k2=100;'
-    cookie会累加--> 结果: document.cookie --> "k1=100;k2=100;"
+    - document.cookie='k1=100;'
+    - document.cookie='k2=100;'
+    - cookie会累加--> 结果: document.cookie --> "k1=100;k2=100;"
 
 3.server端操作cookie，实现登录验证
   - 查看cookie -- req.headers.cookie
@@ -1146,7 +1146,6 @@ module.exports = serverHandle;
     console.log('req.cookie',req.cookie);
 ```
 ```js
-# 
 const { loginCheck } = require('../controllers/user');
 const { SuccessModel,ErrorModel }  = require('../models')
 const handleUserRouter = (req,res) =>{
@@ -1792,4 +1791,44 @@ nginx: configuration file /usr/local/etc/nginx/nginx.conf test is successful
 
 ### 日志
   - 系统没有日志，就等于人没有眼睛
-    - 每日流量 QPS多少(QPS:每秒访问量)
+    - 每日流量？ QPS多少(QPS:每秒访问量)？
+  - 第一，访问日志 access log (server端最重要的日志)
+    - 客户端信息,页面信息
+    - GET/POST  请求
+    - 浏览器信息,占比
+  - 第二，自定义日志(包括自定义事件、错误记录等);
+  - 怎么记录日志？
+  - 怎么拆分日志？分析日志？
+
+1.目录
+ - Nodejs 文件操作 --- Stream 流(为了节省CPU内存)
+    - 日志要存储到文件中    -- 需要拷贝到其他文件，减少操作成本
+    - 为何不存储到mysql中？ -- 硬盘数据库，适合多表联动的查表操作场景
+    - 为何不存储到redis中？ -- 内存数据库，成本太高，日志操作不频繁
+ - 日志功能开发和使用
+ - 日志文件拆分，日志内容分析
+
+2.文件读写，是否存在
+- fs.readFile
+- fs.writeFile
+- fs.exist
+
+3.IO操作的性能瓶颈
+- IO 包括"网络IO" 和 "文件IO"
+- 相对于CPU计算和内存读写，IO的突出特点就是：慢！
+- 如何在有限的硬件资源下提高IO的操作效率？
+
+4.stream--解放CPU内存
+- 标准输入输出，pipe就是管道（符合水流管道的模型图）
+- process.stdin获取数据，直接通过管道传递给 process.stdout
+```js
+process.stdin.pipe(process.stdout)
+
+node index.js
+
+# 结果 输入123 回车就是对应的内容
+123
+123
+231231231
+231231231
+```
