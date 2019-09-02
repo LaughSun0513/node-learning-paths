@@ -2,6 +2,7 @@ const queryString = require('querystring');
 const handleBlogRouter= require('./routers/blog');
 const handleUserRouter = require('./routers/user');
 const { redisSet, redisGet } = require('./db/redis');
+const { access }  = require('./utils/log');
 
 //const SESSION_DATA = {}; //存储session
 //设置cookie过期时间 GMT格式
@@ -34,6 +35,8 @@ const getPostData = (req) => {
 }
 
 const serverHandle = (req,res) => {
+    //记录 access log
+    access(`${req.method} -- ${req.url} -- ${req.headers['user-agent']} -- ${Date.now()}`);
     //设置返回的JSON
     res.setHeader('Content-type','application/json');
     //获取path

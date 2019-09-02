@@ -1832,3 +1832,85 @@ node index.js
 231231231
 231231231
 ```
+
+- 文件IO操作
+```js
+# 将 1.txt文件内容 复制到 2.txt
+const fs = require('fs');
+const path = require('path');
+
+const filename1 = path.resolve(__dirname,'./1.txt');
+const filename2 = path.resolve(__dirname,'./2.txt');
+
+const readStream = fs.createReadStream(filename1);
+const writeStream = fs.createWriteStream(filename2);
+
+//将文件1.txt的内容通过流的方式 复制到 2.txt
+readStream.pipe(writeStream);
+
+//监听变化
+readStream.on('data',chunk => {
+    console.log(chunk.toString());
+});
+readStream.on('end',() => {
+  console.log('copy done');
+});
+```
+- 网络IO操作
+```js
+# 网络IO操作,将1.txt文本内容通过流返回至客户端
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+//将文件1的内容通过stream输出返回至客户端 -- 1
+const filename1 = path.resolve(__dirname,'./1.txt');
+
+const server = http.createServer((req,res)=>{
+  if(req.method === "GET"){
+     const readStream = fs.createReadStream(filename1); //2
+     readStream.pipe(res); //3
+  } 
+})
+server.listen(8005);
+```
+
+#### 代码中记录访问日志
+```js
+# utils/log.js
+const fs =require('fs');
+const path = require('path');
+
+//生成write stream
+function createWriteStream(fileName){
+     const fullFileName = path.resolve(__dirname,'./','../','logs',fileName);
+     const writeStream = fs.createWriteStream(fullFileName,{
+        flags:'a' //append 追加写日志
+     });
+     return writeStream;
+}
+
+const accessWriteStream = createWriteStream('access.log');
+
+function writeLog(writeStream,log){
+  writeStream.write(log + '\n'); //关键
+}
+function access(log){
+  writeLog(accessWriteStream,log);
+}
+
+module.exports = {
+  access
+}
+
+# 使用
+const { access }  = require('./utils/log');
+//记录 access log
+access(`${req.method} -- ${req.url} -- ${req.headers['user-agent']} -- ${Date.now()}`);
+```
+
+#### 日志拆分
+- 日志内容会慢慢积累，放在一个文件中不好处理
+- 按时间划分日志文件，如 2019-08-13.access.logs
+- 实现方式: linux的crontab命令,即定时任务
+
