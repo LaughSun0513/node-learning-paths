@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "cross-env NODE_ENV=dev nodemon ./bin/www.js",
-    "prd": "cross-env NODE_ENV=prodution nodemon ./bin/www.js"
+    "prd": "cross-env NODE_ENV=prodution nodemon ./bin/www.js",
+    "redis":"redis-server",
+    "readline":"node ./utils/readline.js"
   },
   "keywords": [],
   "author": "",

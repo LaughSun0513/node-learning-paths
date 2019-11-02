@@ -1821,12 +1821,13 @@ nginx: configuration file /usr/local/etc/nginx/nginx.conf test is successful
 4.stream--解放CPU内存
 - 标准输入输出，pipe就是管道（符合水流管道的模型图）
 - process.stdin获取数据，直接通过管道传递给 process.stdout
+
 ```js
 process.stdin.pipe(process.stdout)
 
 node index.js
 
-# 结果 输入123 回车就是对应的内容
+### 结果 输入123 回车就是对应的内容
 123
 123
 231231231
@@ -1914,3 +1915,131 @@ access(`${req.method} -- ${req.url} -- ${req.headers['user-agent']} -- ${Date.no
 - 按时间划分日志文件，如 2019-08-13.access.logs
 - 实现方式: linux的crontab命令,即定时任务
 
+##### crontab
+- 设置定时任务 格式 *****command ==> 
+minute/hour/day/month/week  command     顺序：分 时 日 月 周 shell脚本
+例如 
+```txt
+5****command 表示 每5分钟执行该命令
+*1***command 表示 每天的第1个小时执行该命令
+**5**command 表示 每个月5号执行该命令
+***5*command 表示 5月1号执行该命令
+****5command 表示 每周5执行该命令
+```
+
+再比如
+```txt
+## 分钟 ##
+* * * * * command        每1分钟执行一次command
+3,15 * * * * command     每小时的第3和第15分钟执行
+
+## 小时 ##
+* */1 * * * /etc/init.d/smb restart 每一小时重启smb
+* 23-7/1 * * * /etc/init.d/smb restart 晚上11点到早上7点之间，每隔一小时重启smb
+30 21 * * * /etc/init.d/smb restart 每晚的21:30重启smb
+0,30 18-23 * * * /etc/init.d/smb restart 每天18 : 00至23 : 00之间每隔30分钟重启smb
+3,15 8-11 * * * command  在上午8点到11点的第3和第15分钟执行
+
+## 日期 ## 
+3,15 8-11 */2 * * command 每隔两天的上午8点到11点的第3和第15分钟执行
+45 4 1,10,22 * * /etc/init.d/smb restart 每月1、10、22日的4 : 45重启smb
+
+## 月份 ##
+0 4 1 jan * /etc/init.d/smb restart 一月一号的4点重启smb
+
+## 周 ##
+3,15 8-11 * * 1 command  每个星期一的上午8点到11点的第3和第15分钟执行
+10 1 * * 6,0 /etc/init.d/smb restart 每周六、周日的1:10重启smb 
+0 11 4 * mon-wed /etc/init.d/smb restart 每月的4号与每周一到周三的11点重启smb
+```
+
+##### crontab命令和日志的运用场景
+- 将access.log拷贝并重命名为2019-11-2.access.log
+- 清空access.log文件，继续积累日志
+```
+#### 编写shell脚本 ####
+#!/bin/sh
+cd /Users/yuxiaoyang03/Desktop/learning/Node-Blog/blog-1/logs // 到log的目录下
+cp access.log $(date +%Y-%m-%d).access.log  // 将access.log根据时间日期重命名
+echo "" > access.log // 清空access.log
+```
+
+```
+#### 设置定时任务 ####
+crontab -e 
+
+#### 编写定时任务 每天凌晨0点0分执行shell脚本 ####
+* 0 * * * sh /Users/yuxiaoyang03/Desktop/learning/Node-Blog/blog-1/utils/copyLog.sh 
+
+#### 查看已经设置的定时任务 ####
+crontab -l 
+```
+
+#### 日志分析 -- readline
+- 如针对access.log日志，分析Chrome的占比
+- 日志是按行存储的，一行就是一条日志
+- 使用Node的readline(基于stream，效率高)
+
+```js
+// readline使用步骤
+const readline = require('readline');
+const fileName = path.join(__dirname, '../logs/access.log'); //找要分析的日志
+const readStream = fs.createReadStream(fileName); // 创建readstream
+const rl = readline.createInterface({
+  input: readStream
+});// 创建readline对象
+rl.on('line',()=>{});
+rl.on('close',()=>{});
+```
+
+##### 代码
+- 将 http://localhost:8000/api/blog/list 在Chrome/Safari/Firefox里面执行几遍在access.log里产生日志内容
+- 创建 utils/readline.js
+
+```js
+const fs = require('fs');
+const path = require('path');
+const readline = require('readline');
+
+// 寻找目标日志文件
+const fileName = path.join(__dirname, '../logs/access.log');
+
+// 创建读取流 
+const readStream = fs.createReadStream(fileName);
+
+// 创建readline对象
+const rl = readline.createInterface({
+  input: readStream
+});
+
+// 计数器
+let chromeNum = 0;
+let sum = 0;
+
+// 逐行读取
+rl.on('line', (lineData) => {
+  if (!lineData) {
+    return;
+  };
+  sum++;
+
+  // 获取Chrome浏览器的日志信息
+  // GET -- /api/blog/list -- Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36 -- 1572693248592
+  let logArr = lineData.split(' -- '); // 根据--日志格式拆分
+  if (logArr[2] && logArr[2].indexOf('Chrome') > 0) {
+    chromeNum++;
+  }
+});
+
+rl.on('close', () => {
+  let res = parseFloat(chromeNum / sum).toFixed(2) * 100 + "%";
+  console.log('chrome浏览器占比:' + res);
+});
+```
+- 执行 node ./utils/readline.js
+
+#### 总结
+- 日志对于server端很重要，就像眼睛
+- IO性能瓶颈，使用stream提高性能
+- 使用crontab拆分日志文件
+- 使用readline分析日志内容
