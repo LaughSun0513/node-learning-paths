@@ -2133,3 +2133,25 @@ let md5Pass = crypto.createHash('md5').update(content).digest('hex'); //最终�
   - 日志记录
   - 安全(包括登录验证)
   - 集群和服务拆分
+
+# express
+- Nodejs最常用的web server
+- 下载、安装、使用、express中间件机制
+- 开发接口、连接数据库、实现登录、日志记录
+- 分析express中间件原理
+
+## 介绍express
+- 安装--express-generator脚手架
+  - sudo npm i express-generator -g
+  - express blog-express
+  - npm i & npm start
+  - npm i cross-env nodemon -D
+- 初始化代码介绍、处理路由
+- 使用中间件
+
+## app.js
+- 各个插件的作用 
+- 思考更插件的实现原理
+- 处理get/post请求
+
+## 中间件机制
