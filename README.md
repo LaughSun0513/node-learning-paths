@@ -2043,3 +2043,93 @@ rl.on('close', () => {
 - IO性能瓶颈，使用stream提高性能
 - 使用crontab拆分日志文件
 - 使用readline分析日志内容
+
+# 安全
+- SQL注入:窃取数据库内容
+- XSS攻击:窃取前端的cookie的内容
+- 密码加密:保护用户信息安全(重要！！)
+
+## SQL注入
+- 最原始、最简单的攻击，从web2.0就有了
+- 攻击方式:输入一个sql片段，最终拼接成一段攻击代码
+- 预防措施:使用mysql的escape函数处理输入内容即可
+```
+# 正常的sql
+select username,realname from users where username='zhangsan'and password='123';
+
+# 如果在用户名处输入 “zhangsan' --” 就会导致sql注入
+select username,realname from users where username='zhangsan' -- 'and password='123';
+
+# 这样加上“'zhangsan;delete from users -- ”就完蛋了 users表就没了
+select username,realname from users where username='zhangsan';delete from users -- 'and password='123';
+
+# 防范 -- 利用mysql.escape()
+username = mysql.escape(username)
+password = mysql.escape(password)
+
+## escape转义了符号 所以达到了防止sql注入的功能
+select username,realname from users where username='zhangsan\' -- 'and password='123';
+``` 
+
+## XSS攻击
+- 前端同学最熟悉的攻击方式，但server端更应该掌握
+- 攻击方式:在页面展示内容中掺杂js代码，以获取网页信息
+- 预防措施:转换生成js的特殊字符
+```
+// xss攻击 往文本框里输入js代码
+<script>alert(document.cookie)</script>
+
+// 转换特殊字符
+& --> &amp;
+< --> &it;
+> --> &gt;
+" --> &quot;
+' --> &#x27;
+/ --> &#x2F;
+
+// 可以安装xss工具包
+npm i xss --save
+title = xss(title);
+content = xss(content);
+```
+
+## 密码加密 -- crypto加密库
+- 数据库被用户攻破，最不应该泄漏的就是用户信息
+- 攻击方式:获取用户名和密码,再去尝试登录其他系统
+- 预防措施:将密码加密，即便拿到密码也不显示明文
+
+```
+// 原理: 自定义的key + 密码 --> 加密的戳
+let SELECT_KEY = 'AbcD_123123##';
+let content = `password=${password}&key=${SELECT_KEY}`;
+let md5Pass = crypto.createHash('md5').update(content).digest('hex'); //最终加密的密码
+
+// 将zhangsan的密码更新为加密之后的'eb0c2f011e4adb48ad2802321a8c132f'
+// 更换密码长度 右击users表 --> Alter Table --> VARCHAR(20) 改为 VARCHAR(32)
+```
+
+# 总结-- 不使用框架开发server的总结
+- 开发了哪些功能模块，完整的流程
+  - 功能模块
+    - 处理http接口
+    - 连接数据库
+    - 实现登录
+    - 安全
+    - 日志
+    - 上线
+  - 流程
+  浏览器 ---> nginx ---> /..     ---> 静态文件html/css/js/img
+                   ---> /api/.. ---> 日志记录(日志文件)/路由处理/登陆校验(redis)/用户信息(redis)/数据处理(mysql)
+
+- 用到了哪些核心知识点
+  - http,nodejs处理http、处理路由、mysql
+  - cookie、session、redis、nginx反向代理
+  - 安全知识:sql注入、xss攻击、密码加密
+  - 日志、stream、contrab、readline
+
+- 回顾 server和前端的区别
+  - 服务稳定性
+  - 内存CPU优化扩展
+  - 日志记录
+  - 安全(包括登录验证)
+  - 集群和服务拆分
