@@ -2155,3 +2155,6 @@ let md5Pass = crypto.createHash('md5').update(content).digest('hex'); //最终�
 - 处理get/post请求
 
 ## 中间件机制
+- app.use(中间件函数)
+- app.get(中间件函数)
+- app.post(中间件函数)
