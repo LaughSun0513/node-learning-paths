@@ -16,5 +16,6 @@ function doSQL(sql){
   return promise;
 }
 module.exports = {
-    doSQL
+    doSQL,
+    escape:mysql.escape
 }

@@ -1,5 +1,5 @@
 const { doSQL } = require('../db/mysql');
-
+const xss = require('xss');
 /**
  * 获取博客列表数据 GET
  * http://localhost:8000/api/blog/list
@@ -39,7 +39,10 @@ const getDetail = (id) => {
   } 
  */
 const newBlog = (blogData = {}) => {
-  const { title,content,author} = blogData;
+  let { title,content,author} = blogData;
+  // 预防xss攻击 转义js字符
+  title = xss(title);
+  content = xss(content);
   let createtime = Date.now();
   let sql = `insert into blogs (title,content,createtime,author) values ('${title}','${content}',${createtime},'${author}');` //注意执行顺序
 
@@ -72,7 +75,9 @@ const updateBlog = (id,blogData = {}) => {
     // id 要更新的博客id
     // blogData 博客对象 包含title content对象
     console.log('update blog',id,blogData);
-    const { title , content } = blogData;
+    let { title , content } = blogData;
+    title = xss(title);
+    content = xss(content);
     let sql = `update blogs set title='${title}', content='${content}' where id=${id};` //注意 ,空格 content='${content}'
     return doSQL(sql).then(updateRes=>{
       if(updateRes.affectedRows > 0){ //根据affectedRows>0来判断是否更新成功
