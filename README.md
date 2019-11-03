@@ -2160,4 +2160,127 @@ let md5Pass = crypto.createHash('md5').update(content).digest('hex'); //最终�
 - app.post(中间件函数)
 
 ## 具体开发细节
-### 打通数据库和接口--大部分复用blog-1里的代码
+### 1.打通数据库和接口--大部分复用blog-1里的代码
+### 2.使用express-session和connect-redis实现登录验证
+#### req.session保存登录信息 -- express-session
+- npm i express-session
+```js
+// app.js
+const session = require('express-session');
+app.use(session({
+  secret: 'AAAbbb_123##',
+  cookie: {
+    path: '/', //默认
+    httpOnly: true,//默认
+    maxAge: 24 * 60 * 60 * 100
+  }
+}));
+```
+```js
+// user.js
+/** 测试session是否成功
+ * http://localhost:3000/api/user/session-test 
+ * 通过在不同浏览器的返回可以看到不同的数字，说明session配置成功
+ */
+router.get('/session-test',(req,res,next)=>{
+    const session = req.session;
+    if(!session.vieNum){
+      session.vieNum = 0
+    }
+    session.vieNum ++;
+    res.json({
+      vieNum:session.vieNum
+    })
+})
+```
+#### 编写 /api/user/login接口
+原理:登陆完在服务端记录session用户信息,在通过login-test验证是否已登录
+```js
+router.get('/login-get', function(req, res, next) {
+  const { username,password } = req.query;
+  return loginCheck(username,password).then(loginRes => {
+   if(loginRes.username){
+     req.session.username = loginRes.username;
+     req.session.realname = loginRes.realname;
+   
+     res.json(new SuccessModel('登陆成功!'));
+     return;
+    }
+    res.json(new ErrorModel('登录失败!'));
+  });
+});
+/** 测试/login是否成功
+ * http://localhost:3000/api/user/login-get?username=zhangsan&password=123 这里用get模拟post登录
+ * http://localhost:3000/api/user/login-test 测试是否已登录
+ */
+router.get('/login-test',(req,res,next)=>{
+  const session = req.session;
+  if(session.username){
+    res.json({
+      res:'已登录'
+    })
+    return
+  }
+  res.json({
+    res:'登录失败'
+  })
+});
+```
+```js
+// 实际登录使用的是post
+router.post('/login', function(req, res, next) {
+  const { username,password } = req.body;
+  return loginCheck(username,password).then(loginRes => {
+   if(loginRes.username){
+     req.session.username = loginRes.username;
+     req.session.realname = loginRes.realname;
+   
+     res.json(new SuccessModel('登陆成功!'));
+     return;
+    }
+    res.json(new ErrorModel('登录失败!'));
+  });
+});
+```
+#### 使用connect-redis存储用户session信息
+- npm i redis connect-redis
+```js
+// 1 获取redis客户端 db/redis.js
+const redis = require('redis');
+const { REDIS_CONF } = require('./conf');
+const { port , host } = REDIS_CONF;
+
+//创建客户端
+const redisClient = redis.createClient(port,host);
+
+redisClient.on('error',err => {
+    console.error(err);
+});
+
+module.exports = redisClient;
+```
+```js
+// app.js 连接redis的过程
+const session = require('express-session');
+const RedisStore = require('connect-redis')(session);
+const redisClient = require('./db/redis');
+const sessionStore = new RedisStore({
+  client:redisClient
+})
+app.use(session({
+  store:sessionStore
+}))
+```
+- 测试redis中是否已经存储了用户的key
+```txt
+redis-cli
+访问 http://localhost:3000/api/user/login-get?username=zhangsan&password=123
+keys *
+127.0.0.1:6379> keys *
+1) "sess:VKNIoVD6i8u6pTgksuzfCBOQEU67YDJt" # 表示存进去了
+
+# 获取用户信息
+get sess:VKNIoVD6i8u6pTgksuzfCBOQEU67YDJt
+"{\"cookie\":{\"originalMaxAge\":8640000,\"expires\":\"2019-11-03T11:49:33.851Z\",\"httpOnly\":true,\"path\":\"/\"},\"username\":\"zhangsan\",\"realname\":\"\xe5\xbc\xa0\xe4\xb8\x89\"}" ---> 用户信息
+```
+#### 登录校验--做成express中间件
