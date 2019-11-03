@@ -2284,3 +2284,24 @@ get sess:VKNIoVD6i8u6pTgksuzfCBOQEU67YDJt
 "{\"cookie\":{\"originalMaxAge\":8640000,\"expires\":\"2019-11-03T11:49:33.851Z\",\"httpOnly\":true,\"path\":\"/\"},\"username\":\"zhangsan\",\"realname\":\"\xe5\xbc\xa0\xe4\xb8\x89\"}" ---> 用户信息
 ```
 #### 登录校验--做成express中间件
+### 3.日志分析--morgan
+```js
+const ENV = process.env.NODE_ENV
+if(ENV !== 'production'){
+  // 解析开发环境 日志
+  app.use(logger('dev')); 
+  // GET /api/blog/list 304 10.089 ms - - 日志格式
+}else{
+  // 解析线上环境 日志
+  const logFile = path.join(__dirname,'./logs/access.log');
+  const writeStream = fs.createWriteStream(logFile,{
+    flags:'a'
+  });
+  app.use(logger('combined',{
+    stream:writeStream
+  })); 
+  //::1 - - [03/Nov/2019:11:18:04 +0000] "GET /api/blog/list HTTP/1.1" 304 - "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36"
+}
+```
+
+
