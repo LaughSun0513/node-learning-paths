@@ -21,8 +21,10 @@ class myExpress {
     return obj;
   }
   use(){
+    // console.log(...arguments)
     const info = this.handleArgs.apply(this,arguments);
     this.routes.all.push(info);
+    console.log(this.routes.all)
   }
   get(){
     const info = this.handleArgs.apply(this,arguments);
@@ -61,7 +63,7 @@ class myExpress {
           arr = arr.concat(routeInfo.stack);
       }
     });
-    console.log(JSON.stringify('====>'+JSON.stringify(arr)))
+    console.log(arr)
     return arr;
   }
   handleMiddleWare(req,res,middleWareArr){
@@ -76,7 +78,6 @@ class myExpress {
   listen(...args){
       const server = http.createServer(this.init());
       server.listen(...args);
-      console.log(JSON.stringify(this.routes));
   }
 }
 module.exports = ()=>{
