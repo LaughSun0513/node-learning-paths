@@ -47,14 +47,6 @@ app.post('/api/post-data',(req,res,next)=>{
   })
 });
 
-app.use((req,res,next)=>{
-  console.log('9.。。。。。。');
-  res.json({
-    errno:-1,
-    msg:'404 NOT FOUND'
-  })
-})
-
-app.listen(3000,()=>{
-  console.log('server is running on port 3000');
+app.listen(3001,()=>{
+  console.log('server is running on port 3001');
 });
