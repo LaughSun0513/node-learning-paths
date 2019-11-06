@@ -2439,4 +2439,51 @@ getRes()
     }
     - http://localhost:8000/api/blog/del?id=3 根据id删除博客内容 POST
 
-- 记录日志
+- 记录日志 -- 继续使用morgan
+  - 使用koa-smorgan
+  - 自定义日志使用console.log和console.error
+  - 日志文件拆分
+  - 日志内存分析
+
+#### koa-generator脚手架自带的koa-logger只是为了本地服务日志打印更加漂亮，形如: 
+POST /api/blog/update?id=2 - 34ms
+  --> POST /api/blog/update?id=2 200 39ms 42b
+  <-- GET /api/blog/list
+GET /api/blog/list - 2ms
+  --> GET /api/blog/list 200 7ms 231b
+
+```js
+const logger = require('koa-logger')
+// logger
+app.use(async (ctx, next) => {
+  const start = new Date()
+  await next()
+  const ms = new Date() - start
+  console.log(`${ctx.method} ${ctx.url} - ${ms}ms`)
+})
+```
+
+#### 使用koa-morgan
+- npm i koa-morgan
+```js
+// app.js
+const fs = require('fs');
+const path = require('path');
+const morgan = require('koa-morgan');
+
+// use koa-mogran to save logs
+const ENV = process.env.NODE_ENV
+if (ENV !== 'production') { // 解析开发环境 日志 格式:GET /api/blog/list 200 8.058 ms - 343
+  app.use(morgan('dev'));
+} 
+else { // 解析线上环境 日志
+  const logFile = path.join(__dirname, './logs/access.log');
+  const writeStream = fs.createWriteStream(logFile, {
+    flags: 'a'
+  });
+  app.use(morgan('combined', {
+    stream: writeStream
+  }));
+  // 最终线上的日志格式 ::1 - - [06/Nov/2019:13:29:19 +0000] "GET /api/blog/list HTTP/1.1" 200 343 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36"
+}
+```
