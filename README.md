@@ -2350,4 +2350,73 @@ getRes()
     "prd": "cross-env NODE_ENV=production pm2 start bin/www",
 ```
 - 初始化代码 处理路由
+  - ctx 上下文 --> req,res的集合
+  - 处理路由 访问 http://localhost:8000/api/user
+  ```js
+  // routes/user.js
+  const router = require('koa-router')()
+
+  router.prefix('/api/user')
+  router.get('/', async (ctx, next) => {
+    ctx.body ={
+      title:'123'
+    }
+  })
+  module.exports = router
+  ```
+  ```js
+    // app.js
+    const user = require('./routes/user'); // 引入路由文件
+    app.use(user.routes(), user.allowedMethods()); // 注册路由
+  ```
+
 - 使用中间件
+
+#### 开发接口
+- 实现登录
+  - koa-gengeric-session 和 koa-redis 
+  - npm i koa-generic-session koa-redis redis
+  ```js
+    // app.js
+    const session = require('koa-generic-session');
+    const redisStore = require('koa-redis');
+    
+    // connect redis to save session info
+    app.keys = ['AAAbbb_123##'];
+    app.use(session({
+      store: redisStore({
+        all:'127.0.0.1:6379' //本地写死
+      }),
+      // 配置cookie
+      cookie: {
+        path: '/',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000
+      }
+    }))
+  ```
+  - redis-server 开启redis服务
+  - 编写测试session的代码
+  ```js
+    // routes/user.js
+    router.get('/session-test', async (ctx, next) => {
+    if (ctx.session.vieNum == null) {
+      ctx.session.vieNum = 0
+    }
+    ctx.session.vieNum++;
+    ctx.body = {
+      vieNum: ctx.session.vieNum
+    }
+  })
+  ```
+  - 执行http://localhost:8000/api/user/session-test在浏览器中测试
+  - 在redis中查看是否存入
+    redis-cli
+    127.0.0.1:6379> keys *
+      1) "koa:sess:e9n3c4mZ8zvjmkAr_FXGPhcT-DM9GVb_"
+    127.0.0.1:6379> get "koa:sess:e9n3c4mZ8zvjmkAr_FXGPhcT-DM9GVb_"
+"{\"cookie\":{\"path\":\"/\",\"httpOnly\":true,\"maxAge\":86400000,\"overwrite\":true,\"signed\":true},\"vieCount\":1,\"vieNum\":3}"
+
+- 开发路由
+
+- 记录日志

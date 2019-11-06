@@ -33,6 +33,7 @@ app.use(express.json()); // 解析json格式
 app.use(express.urlencoded({extended: false})); // 解析非json格式，如form
 app.use(cookieParser());
 
+// connect redis to save session info
 const redisClient = require('./db/redis');
 const sessionStore = new RedisStore({
   client:redisClient
