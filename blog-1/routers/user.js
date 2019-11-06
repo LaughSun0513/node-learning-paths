@@ -6,7 +6,14 @@ const handleUserRouter = (req,res) =>{
   const method = req.method;
   const path = req.path;
 
-  //获取博客列表  /api/user/login
+  /**用户登录验证  /api/user/login
+   * http://localhost:8000/api/user/login
+   * 
+   {
+	  "username":"zhangsan",
+	  "password":"123"
+   }
+   */
   if( method==="POST" && path === "/api/user/login"){
      const { username,password } = req.body;
      return loginCheck(username,password).then(loginRes => {

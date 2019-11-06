@@ -3,6 +3,14 @@ var router = express.Router();
 const { loginCheck } = require('../controllers/user');
 const { SuccessModel,ErrorModel }  = require('../models');
 
+/**用户登录验证  /api/user/login
+   * http://localhost:8000/api/user/login
+   * 
+   {
+	  "username":"zhangsan",
+	  "password":"123"
+   }
+   */
 router.post('/login', function(req, res, next) {
   const { username,password } = req.body;
   return loginCheck(username,password).then(loginRes => {
@@ -16,7 +24,7 @@ router.post('/login', function(req, res, next) {
     res.json(new ErrorModel('登录失败!'));
   });
 });
-
+//--------------------以下为测试代码-----------------------------------------
 router.get('/login-get', function(req, res, next) {
   const { username,password } = req.query;
   return loginCheck(username,password).then(loginRes => {

@@ -2417,6 +2417,26 @@ getRes()
     127.0.0.1:6379> get "koa:sess:e9n3c4mZ8zvjmkAr_FXGPhcT-DM9GVb_"
 "{\"cookie\":{\"path\":\"/\",\"httpOnly\":true,\"maxAge\":86400000,\"overwrite\":true,\"signed\":true},\"vieCount\":1,\"vieNum\":3}"
 
-- 开发路由
+- 开发接口
+  - user用户登录有关
+    - http://localhost:8000/api/user/login 用户登录
+     {
+      "username":"lisi",
+      "password":"45655"
+     }
+  - blog相关
+    - http://localhost:8000/api/blog/list 获取博客列表数据
+    - http://localhost:8000/api/blog/detail?id=1 根据id获取单个博客详情 
+    - http://localhost:8000/api/blog/new 创建新的博客内容 POST
+    {
+      "title":"博客xx",
+      "content":"内容xx"
+    } 
+    - http://localhost:8000/api/blog/update?id=2 更新博客内容 POST
+    {
+      "title":"博客xxxx",
+      "content":"内容xxxxx"
+    }
+    - http://localhost:8000/api/blog/del?id=3 根据id删除博客内容 POST
 
 - 记录日志

@@ -50,7 +50,7 @@ const newBlog = async (blogData = {}) => {
   }
 }
 /**
- * 创建新的博客内容 POST
+ * 更新博客内容 POST
  * http://localhost:8000/api/blog/update?id=3
  * body 内容
   {
@@ -58,7 +58,7 @@ const newBlog = async (blogData = {}) => {
 	  "content":"内容xxxxx"
   } 
  */
-const updateBlog = (id,blogData = {}) => {
+const updateBlog = async (id,blogData = {}) => {
     // id 要更新的博客id
     // blogData 博客对象 包含title content对象
     console.log('update blog',id,blogData);
@@ -74,10 +74,15 @@ const updateBlog = (id,blogData = {}) => {
     
 }
 /**
- * 创建新的博客内容 POST
+ * 根据id删除博客内容 POST
  * http://localhost:8000/api/blog/del?id=3
+ * 
+ {
+    "message": "删除博客成功",
+    "errno": 0
+  }
  */
-const delBlog = (id,author) => {
+const delBlog = async (id,author) => {
   //id 要删除的博客id
   let sql = `delete from blogs where id='${id}' and author='${author}';` //安全机制，保证作者一致
   const updateRes = await doSQL(sql);

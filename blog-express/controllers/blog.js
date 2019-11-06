@@ -63,7 +63,7 @@ const newBlog = (blogData = {}) => {
   });
 }
 /**
- * 创建新的博客内容 POST
+ * 更新博客内容 POST
  * http://localhost:8000/api/blog/update?id=3
  * body 内容
   {
@@ -87,8 +87,13 @@ const updateBlog = (id,blogData = {}) => {
     })
 }
 /**
- * 创建新的博客内容 POST
+ * 根据id删除博客内容 POST
  * http://localhost:8000/api/blog/del?id=3
+ * 
+ {
+    "message": "删除博客成功",
+    "errno": 0
+  }
  */
 const delBlog = (id,author) => {
   //id 要删除的博客id
