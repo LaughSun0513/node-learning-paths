@@ -2304,4 +2304,50 @@ if(ENV !== 'production'){
 }
 ```
 
+### 4.了解express的中间件原理 -- app.use/get/post怎么收集参数？next怎么触发？
 
+## Koa2
+- express中间件是异步回调，koa2原生支持async/await
+- 新框架开发框架和系统，都基于koa2，例如egg.js
+
+### 目录
+- aysnc/await 语法介绍 安装和介绍koa2
+- 开发接口，连接数据库，实现登录，日志记录
+- 分析koa2中间件原理
+
+
+#### aysnc/await 语法介绍
+- aysnc 函数执行返回promise对象
+- await 后 可执行promise对象
+- await 必须包裹在 async函数内
+- try-catch可以截获promise中reject的值
+```js
+async function getRes() {
+  try {
+    const aData = await getFileContent('1.json');
+    console.log(aData);
+
+    const bData = await getFileContent(aData.next);
+    console.log(bData);
+
+    const cData = await getFileContent(bData.next);
+    console.log(cData);
+  } catch (err) {
+    console.error(err);
+  }
+}
+getRes()
+```
+
+#### 安装和介绍koa2
+- 安装 使用koa-generator
+  - npm i koa-generator 
+  - Koa2 my-test
+  - npm i & npm run dev
+  - npm i cross-env 脚手架没有配置环境参数，需要手动配置
+```
+    "dev": "cross-env NODE_ENV=dev ./node_modules/.bin/nodemon bin/www",
+    "prd": "cross-env NODE_ENV=production pm2 start bin/www",
+```
+- 初始化代码 处理路由
+- 使用中间件
