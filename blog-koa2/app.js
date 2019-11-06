@@ -8,6 +8,9 @@ const logger = require('koa-logger')
 
 const session = require('koa-generic-session');
 const redisStore = require('koa-redis');
+const {
+  REDIS_CONF
+} = require('./db/conf');
 
 const user = require('./routes/user')
 const blog = require('./routes/blog')
@@ -39,7 +42,8 @@ app.use(async (ctx, next) => {
 app.keys = ['AAAbbb_123##'];
 app.use(session({
   store: redisStore({
-    all:'127.0.0.1:6379' //本地写死
+    // all: '127.0.0.1:6379' //本地写死
+    all: `${REDIS_CONF.host}:${REDIS_CONF,port}`
   }),
   // 配置cookie
   cookie: {
