@@ -1,4 +1,4 @@
-const Koa = require('koa');
+const Koa = require('./index');
 const app = new Koa();
 
 // logger
@@ -18,7 +18,7 @@ app.use(async (ctx, next) => {
   const start = Date.now();
   await next();
   const ms = Date.now() - start;
-  ctx.set('X-Response-Time', `~~${ms}ms`);
+  ctx.set('X-Response-Time', `${ms}ms`);
   console.log('4.....第二层洋葱--结束...')
 });
 
